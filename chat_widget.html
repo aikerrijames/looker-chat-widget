@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Widget</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/geist-font/1.0.0/fonts/geist-sans/style.min.css">
+    <style>
+        /* Define brand colors as CSS variables */
+        :root {
+            --brand-primary: #5A7BCE; /* Dominant Blue from image */
+            --brand-secondary: #A0B3E0; /* Lighter version for accents/focus */
+            --brand-border: #D1D5DB;   /* Border Grey */
+            --brand-user-msg-bg: #E5E7EB; /* Light Grey Background for user messages */
+            --brand-text-light: #FFFFFF; /* White */
+            --brand-text-dark: #1F2937;  /* Dark Blue/Grey Text */
+            --brand-placeholder-text: #9CA3AF; /* Lighter grey for placeholder */
+        }
+
+        /* Basic body reset and font setup */
+        body {
+            font-family: 'Geist Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: transparent; /* Assuming it embeds on a page */
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            height: 100vh;
+            overflow: hidden; /* Prevents scrollbars on the body */
+        }
+
+        /* Chat Widget Container Styling */
+        #chat-widget-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px; /* Standard chat widget width */
+            max-width: calc(100vw - 40px); /* Ensure it doesn't overflow on small screens */
+            height: 500px; /* Standard chat widget height */
+            max-height: calc(100vh - 90px); /* Ensure it fits vertically, accounting for button */
+            background: var(--brand-text-light); /* White background */
+            border-radius: 12px; /* Rounded corners */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+            display: none; /* Initially hidden */
+            flex-direction: column;
+            z-index: 1000; /* Ensure it's above other content */
+            overflow: hidden; /* Clip content */
+            border: 1px solid var(--brand-border); /* Border */
+        }
+
+        /* Chat Widget Header Styling */
+        #chat-widget-header {
+            background: var(--brand-primary); /* Use primary brand color */
+            color: var(--brand-text-light); /* White text */
+            padding: 15px 20px; /* Padding */
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+
+        /* Close Button Styling */
+        #chat-widget-header button {
+            background: none;
+            border: none;
+            color: var(--brand-text-light); /* White */
+            font-size: 20px; /* Larger icon */
+            cursor: pointer;
+            padding: 0 5px; /* Clickable area */
+            line-height: 1; /* Prevent extra spacing */
+        }
+        #chat-widget-header button:hover {
+            opacity: 0.8; /* Hover feedback */
+        }
+
+
+        /* Chat Widget Body (Message Area) Styling */
+        #chat-widget-body {
+            flex: 1; /* Take remaining space */
+            padding: 20px;
+            overflow-y: auto; /* Enable scrolling for messages */
+            background-color: var(--brand-text-light); /* White background */
+        }
+
+        /* General Message Styling */
+        #chat-widget-body p {
+            margin-bottom: 15px; /* Spacing between messages */
+            padding: 10px 14px; /* Padding inside messages */
+            border-radius: 10px; /* Rounded message bubbles */
+            font-size: 14px;
+            word-wrap: break-word; /* Wrap long words */
+            max-width: 85%; /* Prevent messages taking full width */
+            line-height: 1.4; /* Readability */
+            clear: both; /* Ensure floats don't interfere */
+        }
+        /* Allow strong tags within messages */
+        #chat-widget-body p strong {
+            font-weight: 600; /* Or font-weight: bold; */
+        }
+
+        /* Style for the initial bot message */
+        #chat-widget-body p.initial-message {
+             background: none; /* No background */
+             color: var(--brand-text-dark); /* Dark text */
+             padding-left: 0;
+             padding-right: 0;
+             margin-bottom: 20px;
+             max-width: 100%; /* Allow full width */
+        }
+         #chat-widget-body p.initial-message strong {
+              font-weight: 600; /* Slightly bolder */
+         }
+
+        /* Style for user messages */
+         #chat-widget-body p.user-message {
+             background-color: var(--brand-user-msg-bg); /* Light grey background */
+             color: var(--brand-text-dark); /* Dark text */
+             margin-left: auto; /* Align to right */
+             float: right; /* Ensure alignment */
+             text-align: left; /* Keep text left-aligned within bubble */
+         }
+
+         /* Style for bot responses */
+         #chat-widget-body p.bot-message {
+             background-color: var(--brand-primary); /* Use primary brand color */
+             color: var(--brand-text-light); /* White text */
+             margin-right: auto; /* Align to left */
+             float: left; /* Ensure alignment */
+             text-align: left;
+         }
+         /* Style for thinking indicator */
+        #chat-widget-body p.thinking-message {
+            background: none;
+            color: #9CA3AF; /* Lighter grey */
+            font-style: italic;
+            padding: 5px 0;
+            margin-bottom: 10px;
+            max-width: 100%;
+            text-align: left;
+            float: left;
+        }
+
+
+        /* Chat Widget Footer (Input Area) Styling */
+        #chat-widget-footer {
+            padding: 12px;
+            border-top: 1px solid var(--brand-border); /* Use brand border color */
+            display: flex;
+            gap: 10px; /* Space between input and button */
+            background-color: var(--brand-text-light); /* White background */
+             flex-shrink: 0; /* Prevent footer from shrinking */
+        }
+
+        /* Input Field Styling */
+        #chat-widget-input {
+            flex: 1; /* Take available space */
+            padding: 8px 12px; /* Padding */
+            border: 1px solid var(--brand-border); /* Use brand border color */
+            border-radius: 8px; /* Rounded corners */
+            outline: none; /* Remove default outline */
+            font-size: 14px;
+            color: var(--brand-text-dark); /* Dark text for input */
+        }
+        #chat-widget-input::placeholder {
+             color: var(--brand-placeholder-text); /* Placeholder text color */
+         }
+         #chat-widget-input:focus {
+             border-color: var(--brand-primary); /* Highlight border with primary blue on focus */
+             box-shadow: 0 0 0 2px var(--brand-secondary); /* Subtle focus ring using secondary blue */
+         }
+
+        /* Send Button Styling */
+        #chat-widget-send {
+            background: var(--brand-primary); /* Use primary brand color */
+            color: var(--brand-text-light); /* White text */
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px; /* Rounded corners */
+            cursor: pointer;
+            font-weight: 500; /* Medium weight */
+            transition: opacity 0.2s ease; /* Smooth hover transition */
+        }
+        #chat-widget-send:hover {
+            opacity: 0.9; /* Slight fade on hover */
+        }
+
+        /* Chat Widget Button (Bubble) Styling */
+        #chat-widget-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--brand-primary); /* Use primary brand color */
+            color: var(--brand-text-light); /* White text */
+            border: none;
+            width: 50px; /* Circle dimensions */
+            height: 50px;
+            border-radius: 50%; /* Make it a circle */
+            cursor: pointer;
+            font-size: 20px; /* Icon size */
+            z-index: 1001; /* Above the widget when closed */
+            display: flex; /* Center icon */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Shadow */
+            transition: opacity 0.2s ease; /* Smooth hover transition */
+        }
+         #chat-widget-button:hover {
+             opacity: 0.9; /* Slight fade on hover */
+         }
+    </style>
+</head>
+<body>
+    <button id="chat-widget-button" title="Open chat">💬</button>
+
+    <div id="chat-widget-container">
+        <div id="chat-widget-header">
+            <span>Dashboard AI Assistant</span>
+            <button onclick="closeChatWidget()" title="Close chat">✖</button>
+        </div>
+        <div id="chat-widget-body">
+             <p class="initial-message"><strong>Hi 👋, how can I help you?</strong></p>
+        </div>
+        <div id="chat-widget-footer">
+            <input type="text" id="chat-widget-input" placeholder="Type your message...">
+            <button id="chat-widget-send">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const chatButton = document.getElementById("chat-widget-button");
+        const chatContainer = document.getElementById("chat-widget-container");
+        const chatBody = document.getElementById("chat-widget-body");
+        const chatInput = document.getElementById("chat-widget-input");
+        const chatSendButton = document.getElementById("chat-widget-send");
+
+        // Webhook configuration (replace with your actual endpoint)
+        const webhookUrl = 'https://aikerrijames.app.n8n.cloud/webhook/8813594d-1e8d-4c0c-a75b-1d0538dfa3ce/chat';
+        const webhookRoute = 'general'; // Or specific route if needed
+
+        // --- Core Functions ---
+
+        // Function to generate or retrieve a unique chat ID for the session
+        function getChatId() {
+            let chatId = sessionStorage.getItem("chatId");
+            if (!chatId) {
+                // Generate a simple unique ID
+                chatId = "chat_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+                sessionStorage.setItem("chatId", chatId);
+            }
+            return chatId;
+        }
+
+        // Function to open the chat widget
+        function openChatWidget() {
+            chatContainer.style.display = "flex";
+            chatButton.style.display = "none";
+             // Optional: Focus the input field when opened
+            setTimeout(() => chatInput.focus(), 100);
+        }
+
+        // Function to close the chat widget
+        function closeChatWidget() {
+            chatContainer.style.display = "none";
+            chatButton.style.display = "flex";
+        }
+
+        // Function to convert basic Markdown (like bold) to HTML
+        function convertMarkdownToHtml(text) {
+            // Replace **text** with <strong>text</strong>
+            // Use a non-greedy match (.+?) to handle multiple bolds correctly
+            let html = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            // Add more replacements here for other Markdown if needed (e.g., *italic*)
+            // html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            return html;
+        }
+
+        // Function to add a message to the chat body
+        // sender can be 'user', 'bot', or 'system' (for thinking indicator)
+        function addMessageToChat(text, sender) {
+             const messageElement = document.createElement("p");
+
+             // Convert Markdown to HTML *before* setting innerHTML for bot/user messages
+             // Avoid converting system messages like "Thinking..."
+             const formattedText = (sender === 'bot' || sender === 'user')
+                                   ? convertMarkdownToHtml(text)
+                                   : text;
+
+             messageElement.innerHTML = formattedText; // Use the formatted text
+
+             // Apply class based on sender for styling
+             if (sender === 'user') {
+                 messageElement.className = 'user-message';
+             } else if (sender === 'bot') {
+                 messageElement.className = 'bot-message';
+             } else if (sender === 'system') {
+                 messageElement.className = 'thinking-message'; // Special class for thinking indicator
+             } else {
+                 messageElement.className = 'initial-message'; // Default or initial
+             }
+
+             chatBody.appendChild(messageElement);
+
+             // Scroll to the bottom of the chat body to show the latest message
+             scrollToBottom();
+
+             return messageElement; // Return the element if needed (e.g., for removal)
+        }
+
+        // Function to scroll the chat body to the bottom
+        function scrollToBottom() {
+            // Use smooth scrolling for better UX
+            chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Function to handle sending a message
+        function sendMessage() {
+            const messageText = chatInput.value.trim();
+            if (messageText === "") return; // Don't send empty messages
+
+            // 1. Add user message visually (will also be formatted if needed)
+            addMessageToChat(messageText, 'user');
+            chatInput.value = ""; // Clear input field immediately
+            chatInput.focus(); // Keep focus on input after sending
+
+            // 2. Add a "Thinking..." indicator (optional)
+            const thinkingMessage = addMessageToChat("Thinking...", 'system');
+
+            // 3. Get Chat ID
+            const chatId = getChatId();
+
+            // 4. Send message to webhook
+            fetch(webhookUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    // Add any other necessary headers here
+                },
+                body: JSON.stringify({
+                    chatId: chatId,
+                    message: messageText,
+                    route: webhookRoute // Include route if your webhook uses it
+                })
+            })
+            .then(response => {
+                // Remove thinking indicator regardless of success or failure
+                if (thinkingMessage && thinkingMessage.parentNode === chatBody) {
+                    chatBody.removeChild(thinkingMessage);
+                }
+                // Check if the response was successful
+                if (!response.ok) {
+                     // Throw an error with status text to be caught below
+                    throw new Error(`Network response was not ok: ${response.statusText} (${response.status})`);
+                }
+                return response.json(); // Parse JSON response
+             })
+            .then(data => {
+                 // 5. Add bot response visually (will be formatted by addMessageToChat)
+                 const botResponse = data.output || "Sorry, I couldn't process that response.";
+                 addMessageToChat(botResponse, 'bot');
+            })
+            .catch(error => {
+                // 6. Handle errors (network or processing)
+                console.error("Error sending/receiving chat message:", error);
+                // Display an error message to the user in the chat
+                addMessageToChat(`Sorry, there was an error. (${error.message || 'Please try again.'})`, 'bot');
+
+                // Ensure thinking message is removed if it still exists (edge case)
+                 if (thinkingMessage && thinkingMessage.parentNode === chatBody) {
+                    try { chatBody.removeChild(thinkingMessage); } catch (e) {}
+                }
+            });
+        }
+
+        // --- Event Listeners ---
+
+        // Open chat when the button is clicked
+        chatButton.addEventListener("click", openChatWidget);
+
+        // Send message when the send button is clicked
+        chatSendButton.addEventListener("click", sendMessage);
+
+        // Send message when Enter key is pressed in the input field
+        chatInput.addEventListener("keypress", function(event) {
+            // Check if the key pressed was 'Enter'
+            if (event.key === "Enter") {
+                event.preventDefault(); // Prevent default action (like form submission)
+                sendMessage(); // Call the sendMessage function
+            }
+        });
+
+        // Ensure the close button function is globally accessible
+        window.closeChatWidget = closeChatWidget;
+
+        // Optional: Automatically scroll down when new content (like images) loads
+        // chatBody.addEventListener('load', scrollToBottom, true);
+
+    </script>
+
+</body>
+</html>
+
+
